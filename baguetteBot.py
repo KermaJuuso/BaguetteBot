@@ -1,5 +1,5 @@
 """
-This bot is used for a community to stay updatet for the
+This bot is used for a community to stay updated for the
 baguette flavours of each day. A person must visit the Bitti cafe
 and update the bot by /add command.
 """
@@ -18,7 +18,7 @@ ALLOWED_GROUPS = {-1002468965180, 5978668914} #The baguette group
 
 
 global_message_count = 0
-FLOOD_LIMIT = 20  # Max messages per minute
+FLOOD_LIMIT = 10  # Max messages per minute
 FLOOD_RESET_TIME = 60  # Seconds before reset
 flood_block_until = None
 
@@ -49,6 +49,9 @@ daily_fact = None
 
 @flood_protection
 def daily_baguette_fact(update: Update, context: CallbackContext) -> None:
+    """
+    Remember to update to reset daily_fact to None.
+    """
     global daily_fact
 
     if daily_fact is not None:
@@ -90,7 +93,7 @@ def start(update: Update, context: CallbackContext) -> None:
 
 def remove_old_baguettes():
     """Removes baguettes from the previous day."""
-    today = datetime.now().date()
+    today = datetime.now().strftime("%d.%m.%Y")
     global baguettes
     baguettes = [(flavour, date) for flavour, date in baguettes if date == today]
 
@@ -98,15 +101,23 @@ def remove_old_baguettes():
 @flood_protection
 @group_restricted
 def add_baguette(update: Update, context: CallbackContext) -> None:
+    """/add [flavour]"""
     if not context.args:
         update.message.chat.send_message("Käytä: /add [patonki]")
         return
 
     remove_old_baguettes()  # Clean up old baguettes first
-    flavour = " ".join(context.args)
-    today = datetime.now().date()
-    baguettes.append((flavour, today))
-    update.message.chat.send_message(f"Lisättiin patonki #{len(baguettes)}: {flavour} ({today})")
+    flavours = " ".join(context.args).split(",")
+    flavours = [flavour.strip() for flavour in flavours]
+    today = datetime.now().strftime("%d.%m.%Y")
+
+    #Add to baguette to history to collect data
+    with open("history.txt", "a", encoding="utf-8") as file:
+        for flavour in flavours:
+            file.write(f"{today}: {flavour}")
+            baguettes.append((flavour, today))
+
+    update.message.chat.send_message(f"Lisättiin patongit: {', '.join(flavours)} ({today})")
 
 
 @flood_protection
@@ -126,7 +137,7 @@ def del_baguette(update: Update, context: CallbackContext) -> None:
 
     if 0 <= index < len(baguettes):
         removed, _ = baguettes.pop(index)
-        update.message.chat.send_message(f"Poistettiin patoni #{index + 1}: {removed}")
+        update.message.chat.send_message(f"Poistettiin patonki #{index + 1}: {removed}")
     else:
         update.message.chat.send_message("Väärä patonki numero.")
 
@@ -134,7 +145,7 @@ def del_baguette(update: Update, context: CallbackContext) -> None:
 @flood_protection
 def list_baguettes(update: Update, context: CallbackContext) -> None:
     remove_old_baguettes()
-    today = datetime.now().date()
+    today = datetime.now().strftime("%d.%m.%Y")
 
     if baguettes:
         message = f"Patongit ({today}):\n" + "\n".join(
