@@ -88,7 +88,8 @@ def group_restricted(func):
 def start(update: Update, context: CallbackContext) -> None:
     update.message.chat.send_message("Hei, olen PatonkiBotti \n"
                               "Komennot:\n"
-                              "/add [patonki]\n/del [numero]\n/list\n/delall\n/fact")
+                              "/add [patonki1, patonki2...]\n"
+                              "/del [numero]\n/list\n/delall\n/fact")
 
 
 def remove_old_baguettes():
@@ -103,7 +104,7 @@ def remove_old_baguettes():
 def add_baguette(update: Update, context: CallbackContext) -> None:
     """/add [flavour]"""
     if not context.args:
-        update.message.chat.send_message("Käytä: /add [patonki]")
+        update.message.chat.send_message("Käytä: /add [patonki1, patonki2...]")
         return
 
     remove_old_baguettes()  # Clean up old baguettes first
@@ -114,7 +115,7 @@ def add_baguette(update: Update, context: CallbackContext) -> None:
     #Add to baguette to history to collect data
     with open("history.txt", "a", encoding="utf-8") as file:
         for flavour in flavours:
-            file.write(f"{today}: {flavour}")
+            file.write(f"{today}: {flavour}\n")
             baguettes.append((flavour, today))
 
     update.message.chat.send_message(f"Lisättiin patongit: {', '.join(flavours)} ({today})")
