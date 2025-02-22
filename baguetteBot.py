@@ -9,6 +9,7 @@ from datetime import datetime, timedelta
 import os
 from dotenv import load_dotenv
 import random
+import time
 
 load_dotenv()
 TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
@@ -45,8 +46,6 @@ def flood_protection(func):
 
 FACT_FILE = "faktat.txt"
 daily_fact = None
-
-
 @flood_protection
 def daily_baguette_fact(update: Update, context: CallbackContext) -> None:
     """
@@ -54,9 +53,13 @@ def daily_baguette_fact(update: Update, context: CallbackContext) -> None:
     """
     global daily_fact
 
+    if daily_fact is None or daily_fact[1] != datetime.now().strftime("%d.%m.%Y"):
+        daily_fact = None
+
     if daily_fact is not None:
         update.message.chat.send_message("Päivän fakta on jo jaettu! Yritä huomenna uudestaan. 🥖😱")
         return
+
 
     with open(FACT_FILE, "r", encoding="utf-8") as file:
         facts = file.readlines()
@@ -65,9 +68,15 @@ def daily_baguette_fact(update: Update, context: CallbackContext) -> None:
         update.message.chat.send_message("Ei löytynyt yhtään patonki-faktaa! 🥖😱")
         return
 
-    daily_fact = random.choice(facts).strip()
     today = datetime.now().strftime("%d.%m.%Y")
-    update.message.chat.send_message(f"Päivän fakta ({today})🥖😱:\n{daily_fact}")
+    daily_fact = random.choice(facts).strip(), today
+    update.message.chat.send_message(f"Päivän fakta ({today})🥖😱:\n{daily_fact[0]}")
+
+    facts = [fact for fact in facts if fact.strip() != daily_fact[0]]
+
+    with open(FACT_FILE, "w", encoding="utf-8") as file:
+        file.writelines(facts)
+
 
 
 def group_restricted(func):
@@ -121,6 +130,15 @@ def add_baguette(update: Update, context: CallbackContext) -> None:
     update.message.chat.send_message(f"Lisättiin patongit: {', '.join(flavours)} ({today})")
 
 
+"""    print("Error testing4")
+    context.chat_data["list_baguettes_job"] = context.job_queue.run_once(
+        
+        lambda c: list_baguettes(update, c), 10
+    )
+    print(f"Scheduled job: {context.chat_data['list_baguettes_job']}")"""
+
+
+
 @flood_protection
 @group_restricted
 def del_baguette(update: Update, context: CallbackContext) -> None:
@@ -145,6 +163,7 @@ def del_baguette(update: Update, context: CallbackContext) -> None:
 
 @flood_protection
 def list_baguettes(update: Update, context: CallbackContext) -> None:
+
     remove_old_baguettes()
     today = datetime.now().strftime("%d.%m.%Y")
 
@@ -171,7 +190,11 @@ def del_all_baguettes(update: Update, context: CallbackContext) -> None:
 def error_handler(update: Update, context: CallbackContext) -> None:
     """Logs errors and notifies the user."""
     print(f"Error: {context.error}")
-    update.message.chat.send_message("Hups! Tapahtui virhe.")
+    try:
+        if update and update.message:
+            update.message.chat.send_message("Hups! Tapahtui virhe.")
+    except Exception as e:
+        print(f"Error handling failed: {e}")
 
 
 def main():
@@ -186,7 +209,7 @@ def main():
     dp.add_handler(CommandHandler("fact", daily_baguette_fact))
     dp.add_error_handler(error_handler)
 
-    updater.start_polling()
+    updater.start_polling(drop_pending_updates=True)
     updater.idle()
 
 if __name__ == "__main__":
